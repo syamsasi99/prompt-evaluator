@@ -1,0 +1,123 @@
+{
+  "name": "prompt-evaluator",
+  "version": "0.0.2",
+  "description": "Desktop GUI for building and running promptfoo evaluations",
+  "main": "dist-electron/main.js",
+  "author": "Carousell",
+  "license": "MIT",
+  "private": false,
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 ./node_modules/.bin/electron .\"",
+    "build:renderer": "vite build",
+    "build:electron": "tsc -p ./electron/tsconfig.json",
+    "build": "npm run build:renderer && npm run build:electron",
+    "dist": "npm run build && electron-builder -mwl",
+    "dist:mac": "npm run build && electron-builder -m",
+    "dist:win": "npm run build && electron-builder -w",
+    "dist:linux": "npm run build && electron-builder -l",
+    "postinstall": "electron-builder install-app-deps",
+    "prebuild": "npm run check:build-scripts",
+    "check:build-scripts": "test -f build/installer.nsh && test -f build/postinstall-mac.sh && test -f build/postinstall-linux.sh || echo 'Warning: Some installer scripts are missing'",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "npm run build && playwright test",
+    "test:e2e:ui": "npm run build && playwright test --ui",
+    "test:e2e:debug": "npm run build && playwright test --debug",
+    "test:e2e:headed": "npm run build && playwright test --headed",
+    "test:e2e:report": "playwright show-report",
+    "test:all": "npm run test:run && npm run test:e2e"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.0",
+    "@google/generative-ai": "^0.24.1",
+    "@monaco-editor/react": "^4.6.0",
+    "chokidar": "^4.0.3",
+    "dotenv": "^17.2.3",
+    "js-yaml": "^4.1.0",
+    "monaco-editor": "^0.45.0",
+    "openai": "^6.9.1",
+    "papaparse": "^5.4.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "recharts": "^3.3.0",
+    "zod": "^3.22.4",
+    "zustand": "^4.4.7"
+  },
+  "devDependencies": {
+    "@electron/notarize": "^2.5.0",
+    "@playwright/test": "^1.56.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.10.6",
+    "@types/papaparse": "^5.3.14",
+    "@types/react": "^18.2.46",
+    "@types/react-dom": "^18.2.18",
+    "@vitejs/plugin-react": "^4.2.1",
+    "@vitest/coverage-v8": "^3.2.4",
+    "@vitest/ui": "^3.2.4",
+    "autoprefixer": "^10.4.16",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron": "^28.3.3",
+    "electron-builder": "^24.9.1",
+    "jsdom": "^26.1.0",
+    "playwright": "^1.56.1",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.10",
+    "vitest": "^3.2.4",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.carousell.promptevaluator",
+    "productName": "Prompt Evaluator",
+    "asar": false,
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "prompts/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.developer-tools",
+      "icon": "assets/icon.png",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "identity": null
+    },
+    "afterSign": "scripts/adhoc-sign.js",
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ],
+      "icon": "assets/icon.png"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Development",
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

@@ -1,0 +1,49 @@
+# Dependencies
+node_modules
+
+# Build outputs
+dist
+dist-electron
+release
+
+# Environment files (CRITICAL - contains API keys)
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test coverage
+coverage
+.nyc_output
+test-results
+playwright-report
+
+# Sensitive files
+*.key
+*.pem
+*.p12
+*.pfx
+credentials.json
+service-account.json
+
+# Temporary files
+*.tmp
+*.temp
+.cache

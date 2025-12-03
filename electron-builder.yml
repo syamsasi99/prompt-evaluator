@@ -1,0 +1,59 @@
+appId: com.carousell.promptevaluator
+productName: Prompt Evaluator
+copyright: Copyright © 2025
+
+directories:
+  output: release
+  buildResources: assets
+
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - package.json
+
+# Auto-update configuration (placeholder)
+# publish:
+#   provider: github
+#   owner: your-username
+#   repo: promptfoo-yaml-builder
+
+mac:
+  target:
+    - dmg
+    - zip
+  category: public.app-category.developer-tools
+  icon: assets/icon.png
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  # entitlements: build/entitlements.mac.plist
+  # entitlementsInherit: build/entitlements.mac.plist
+
+dmg:
+  title: ${productName}
+  icon: assets/icon.png
+  # Post-install script runs after DMG installation
+  # Note: For DMG, we'll need to trigger the script from the app on first launch
+
+win:
+  target:
+    - nsis
+    - zip
+  icon: assets/icon.png
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  include: build/installer.nsh
+  # Custom installer script that checks and installs dependencies
+
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Development
+  icon: assets/icon.png
+  # Post-install script for DEB packages
+  afterInstall: build/postinstall-linux.sh

@@ -1,0 +1,1065 @@
+import React, { useState, useMemo } from 'react';
+import type { ComparisonData, TestComparison, TestStatus } from '../lib/comparisonTypes';
+import { filterTests } from '../lib/comparison';
+import { useToast } from '../contexts/ToastContext';
+import { getLineDiff, type DiffPart } from '../lib/textDiff';
+import { InfoTooltip } from './InfoTooltip';
+import { BarComparisonChart, MultiLineChart } from './charts';
+
+// Helper function to format cost with appropriate precision
+const formatCost = (cost: number): string => {
+  if (cost === 0) return '$0.000000';
+  // Always show 6 decimal places for precision
+  return `$${cost.toFixed(6)}`;
+};
+
+interface ComparisonViewProps {
+  comparisonData: ComparisonData;
+  onBack: () => void;
+}
+
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
+
+// Metric descriptions for tooltips
+const METRIC_INFO: Record<string, { title: string; description: string; calculation: string }> = {
+  passRate: {
+    title: 'Pass Rate (%)',
+    description: 'Percentage of tests that passed all assertions. Higher is better. This measures overall quality of your LLM outputs against defined success criteria.',
+    calculation: '(Number of passed tests / Total tests) × 100%',
+  },
+  avgScore: {
+    title: 'Average Score',
+    description: 'Average score across all test assertions (0-1 scale). Scores can be partial based on assertion type. Higher scores indicate better performance.',
+    calculation: 'Sum of all test scores / Total number of tests',
+  },
+  totalCost: {
+    title: 'Total Cost ($)',
+    description: 'Total API cost for all LLM calls in the evaluation run. Includes prompt and completion tokens. Lower is better.',
+    calculation: 'Sum of (input_tokens × input_price + output_tokens × output_price) for all tests',
+  },
+  avgLatency: {
+    title: 'Avg Latency (ms)',
+    description: 'Average response time per test in milliseconds. Measures how fast the LLM provider responds. Lower is better for user experience.',
+    calculation: 'Total latency across all tests / Number of tests',
+  },
+  tokenUsage: {
+    title: 'Token Usage',
+    description: 'Total number of tokens used (prompt + completion) across all evaluation tests. This includes the full prompt, variables, and LLM responses. Does not include tokens from assertion grading.',
+    calculation: 'Sum of (prompt_tokens + completion_tokens) for all test executions',
+  },
+};
+
+export function ComparisonView({ comparisonData, onBack }: ComparisonViewProps) {
+  const toast = useToast();
+  const [filterType, setFilterType] = useState<'all' | 'regressions' | 'improvements' | 'changes' | 'consistent-failures' | 'volatile'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['metrics', 'tests', 'config']));
+
+  // AI Chat state
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const filteredTests = useMemo(() => {
+    return filterTests(comparisonData.tests, filterType, searchQuery);
+  }, [comparisonData.tests, filterType, searchQuery]);
+
+  const toggleSection = (section: string) => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(section)) {
+        next.delete(section);
+      } else {
+        next.add(section);
+      }
+      return next;
+    });
+  };
+
+  const formatDate = (timestamp: string) => {
+    const date = new Date(timestamp);
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const formatDelta = (value: number, isPercentage: boolean = false): string => {
+    const sign = value > 0 ? '+' : '';
+    if (isPercentage) {
+      return `${sign}${value.toFixed(1)}%`;
+    }
+    return `${sign}${value.toFixed(2)}`;
+  };
+
+  const getTrendIcon = (trend: string) => {
+    switch (trend) {
+      case 'improving':
+        return '📈';
+      case 'degrading':
+        return '📉';
+      case 'variable':
+        return '📊';
+      default:
+        return '➡️';
+    }
+  };
+
+  const getStatusBadge = (status: TestStatus) => {
+    switch (status) {
+      case 'improved':
+        return <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">🟢 Fixed</span>;
+      case 'regressed':
+        return <span className="px-2 py-1 bg-red-100 text-red-800 text-xs font-medium rounded">🔴 Regressed</span>;
+      case 'changed':
+        return <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded">🟡 Changed</span>;
+      case 'volatile':
+        return <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded">⚠️ Volatile</span>;
+      default:
+        return <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded">✔️ Stable</span>;
+    }
+  };
+
+  // Handle AI chat
+  const handleChatSubmit = async () => {
+    if (!chatInput.trim() || isAnalyzing) return;
+
+    const userMessage: ChatMessage = {
+      role: 'user',
+      content: chatInput.trim(),
+      timestamp: new Date(),
+    };
+
+    setChatMessages((prev) => [...prev, userMessage]);
+    setChatInput('');
+    setIsAnalyzing(true);
+
+    try {
+      // Build comparison context
+      const context = {
+        projectName: comparisonData.projectName,
+        runCount: comparisonData.runs.length,
+        runDates: comparisonData.runs.map(r => r.timestamp),
+        metrics: {
+          passRate: metrics.passRate.values,
+          avgScore: metrics.avgScore.values,
+          totalCost: metrics.totalCost.values,
+          avgLatency: metrics.avgLatency.values,
+          tokenUsage: metrics.tokenUsage.values,
+        },
+        summary: {
+          totalTests: summary.totalTests,
+          consistentTests: summary.consistentTests,
+          consistencyPercentage: summary.consistencyPercentage,
+          improvedTests: summary.improvedTests,
+          regressedTests: summary.regressedTests,
+          changedTests: summary.changedTests,
+          volatileTests: summary.volatileTests,
+        },
+        configChanges: {
+          promptChanges: config.promptChanges?.length || 0,
+          assertionChanges: config.assertionChanges?.length || 0,
+          providerChanged: config.providerModel.changed,
+        },
+        chatHistory: chatMessages.map(m => ({ role: m.role, content: m.content })),
+      };
+
+      if (window.api?.analyzeComparison) {
+        const result = await window.api.analyzeComparison(userMessage.content, context);
+
+        if (result.success && result.analysis) {
+          const assistantMessage: ChatMessage = {
+            role: 'assistant',
+            content: result.analysis,
+            timestamp: new Date(),
+          };
+          setChatMessages((prev) => [...prev, assistantMessage]);
+        } else {
+          toast.error(`Analysis failed: ${result.error || 'Unknown error'}`);
+        }
+      }
+    } catch (error: any) {
+      toast.error(`Failed to analyze: ${error.message}`);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const { runs, metrics, tests, config, summary } = comparisonData;
+
+  // Prepare chart data
+  const metricsChartData = useMemo(() => {
+    // Bar chart data for current metrics
+    const barData = [
+      {
+        name: 'Pass Rate',
+        value: metrics.passRate.values[metrics.passRate.values.length - 1],
+        color: '#10B981',
+      },
+      {
+        name: 'Avg Score',
+        value: metrics.avgScore.values[metrics.avgScore.values.length - 1] * 100,
+        color: '#3B82F6',
+      },
+    ];
+
+    // Multi-line chart for trends across runs
+    const trendData = runs.map((run, index) => ({
+      timestamp: run.timestamp,
+      passRate: metrics.passRate.values[index],
+      avgScore: metrics.avgScore.values[index] * 100,
+      cost: metrics.totalCost.values[index],
+      latency: metrics.avgLatency.values[index],
+    }));
+
+    // Cost comparison
+    const costData = runs.map((run, index) => ({
+      name: `Run ${index + 1}`,
+      value: metrics.totalCost.values[index],
+      color: index === 0 ? '#F59E0B' : index === 1 ? '#EF4444' : '#8B5CF6',
+    }));
+
+    // Token usage comparison
+    const tokenData = runs.map((run, index) => ({
+      name: `Run ${index + 1}`,
+      value: metrics.tokenUsage.values[index],
+      color: index === 0 ? '#8B5CF6' : index === 1 ? '#6366F1' : '#EC4899',
+    }));
+
+    return {
+      barData,
+      trendData,
+      costData,
+      tokenData,
+    };
+  }, [runs, metrics]);
+
+  return (
+    <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
+      {/* Header */}
+      <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 px-6 py-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={onBack}
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Back to History
+            </button>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Run Comparison</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Project: {comparisonData.projectName}</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Comparing {runs.length} runs</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{formatDate(runs[0].timestamp)} → {formatDate(runs[runs.length - 1].timestamp)}</p>
+          </div>
+        </div>
+
+        {/* Info: Tests are grouped by dataset + provider */}
+        {(() => {
+          const providers = runs.map(r => r.project?.providers?.[0]?.providerId).filter(Boolean);
+          const uniqueProviders = new Set(providers);
+          const isDifferentProviders = uniqueProviders.size > 1;
+
+          if (isDifferentProviders) {
+            return (
+              <div className="mt-4 mb-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4 flex items-start gap-3">
+                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-200">Multiple Providers Detected</p>
+                  <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                    Tests with the same dataset variables but different providers ({Array.from(uniqueProviders).map(p => p?.split(':')[1] || p).join(', ')}) are shown as separate rows.
+                    This allows you to compare how each provider performs on the same inputs, as well as track improvements for each provider over time.
+                  </p>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
+
+        {/* Run Headers */}
+        <div className="grid grid-cols-3 gap-4 mt-4">
+          {runs.map((run, index) => (
+            <div key={run.id} className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold text-blue-900 dark:text-blue-200">Run {index + 1}</h3>
+                <span className="text-xs text-blue-600 dark:text-blue-400">{formatDate(run.timestamp)}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <p className="text-gray-600 dark:text-gray-400 text-xs">Tests</p>
+                  <p className="font-semibold dark:text-gray-100">{run.stats.totalTests}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600 dark:text-gray-400 text-xs">Pass Rate</p>
+                  <p className="font-semibold text-green-700">
+                    {run.stats.totalTests > 0 ? ((run.stats.passed / run.stats.totalTests) * 100).toFixed(0) : 0}%
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-600 dark:text-gray-400 text-xs">Avg Score</p>
+                  <p className="font-semibold dark:text-gray-100">{run.stats.avgScore.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600 dark:text-gray-400 text-xs">Cost</p>
+                  <p className="font-semibold dark:text-gray-100">{formatCost(run.stats.totalCost)}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-gray-600 dark:text-gray-400 text-xs">Latency</p>
+                  <p className="font-semibold dark:text-gray-100">{(run.stats.totalLatency / 1000).toFixed(1)}s total / {run.stats.totalTests > 0 ? (run.stats.totalLatency / run.stats.totalTests).toFixed(0) : 0}ms avg</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-auto p-6">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Summary Stats */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 dark:text-gray-100">
+              <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              Comparison Summary
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-1 flex items-center">
+                  Consistency
+                  <InfoTooltip
+                    title="Consistency"
+                    description="Measures how stable your test results are across runs. Tests that maintain the same pass/fail status are considered consistent."
+                    calculation="(Number of stable tests / Total tests) × 100%"
+                  />
+                </p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{summary.consistencyPercentage.toFixed(0)}%</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{summary.consistentTests} / {summary.totalTests} stable</p>
+              </div>
+              <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                <p className="text-xs text-green-600 dark:text-green-400 mb-1 flex items-center">
+                  Improvements
+                  <InfoTooltip
+                    title="Improvements"
+                    description="Number of tests that changed from failing to passing between the first and last run. For same-provider comparisons, this indicates prompt/config improvements."
+                    calculation="Count of tests with pass=false initially → pass=true finally"
+                  />
+                </p>
+                <p className="text-2xl font-bold text-green-700 dark:text-green-400">{summary.improvedTests}</p>
+                <p className="text-xs text-green-600 dark:text-green-400 mt-1">🟢 Newly passing</p>
+              </div>
+              <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
+                <p className="text-xs text-red-600 dark:text-red-400 mb-1 flex items-center">
+                  Regressions
+                  <InfoTooltip
+                    title="Regressions"
+                    description="Number of tests that changed from passing to failing between the first and last run. These indicate potential issues introduced by recent changes."
+                    calculation="Count of tests with pass=true initially → pass=false finally"
+                  />
+                </p>
+                <p className="text-2xl font-bold text-red-700 dark:text-red-400">{summary.regressedTests}</p>
+                <p className="text-xs text-red-600 dark:text-red-400 mt-1">🔴 Newly failing</p>
+              </div>
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4">
+                <p className="text-xs text-yellow-600 dark:text-yellow-400 mb-1 flex items-center">
+                  Score Changes
+                  <InfoTooltip
+                    title="Score Changes"
+                    description="Number of tests with significant score changes (>0.2 points) while maintaining the same pass/fail status. Indicates quality shifts in responses."
+                    calculation="Count of tests where score variance > 0.2 with consistent pass/fail"
+                  />
+                </p>
+                <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-400">{summary.changedTests}</p>
+                <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">🟡 Significant shifts</p>
+              </div>
+            </div>
+            {(summary.mostImprovedTest || summary.mostRegressedTest) && (
+              <div className="mt-4 pt-4 border-t dark:border-gray-700 text-sm">
+                {summary.mostImprovedTest && (
+                  <p className="text-green-700 dark:text-green-400">
+                    ✨ Most improved: <span className="font-medium">{summary.mostImprovedTest.promptLabel}</span> (+{summary.mostImprovedTest.scoreDelta.toFixed(2)})
+                  </p>
+                )}
+                {summary.mostRegressedTest && (
+                  <p className="text-red-700 dark:text-red-400 mt-1">
+                    ⚠️ Most concerning: <span className="font-medium">{summary.mostRegressedTest.promptLabel}</span> ({summary.mostRegressedTest.scoreDelta.toFixed(2)})
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Visual Charts Section */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 dark:text-gray-100">
+              <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              Visual Comparison
+            </h3>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Quality Metrics Trend */}
+              <MultiLineChart
+                data={metricsChartData.trendData}
+                series={[
+                  { key: 'passRate', name: 'Pass Rate (%)', color: '#10B981' },
+                  { key: 'avgScore', name: 'Avg Score (%)', color: '#3B82F6' },
+                ]}
+                title="Quality Trends Across Runs"
+                yAxisLabel="Percentage"
+                valueFormatter={(value) => `${value.toFixed(1)}%`}
+                height={250}
+              />
+
+              {/* Cost Comparison */}
+              <BarComparisonChart
+                data={metricsChartData.costData}
+                title="Cost Per Run"
+                yAxisLabel="Total Cost ($)"
+                valueFormatter={(value) => formatCost(value)}
+                height={250}
+              />
+
+              {/* Latency Trend */}
+              <MultiLineChart
+                data={metricsChartData.trendData}
+                series={[
+                  { key: 'latency', name: 'Avg Latency (ms)', color: '#F59E0B' },
+                ]}
+                title="Latency Across Runs"
+                yAxisLabel="Milliseconds"
+                valueFormatter={(value) => `${value.toFixed(0)}ms`}
+                height={250}
+              />
+
+              {/* Token Usage Comparison */}
+              <BarComparisonChart
+                data={metricsChartData.tokenData}
+                title="Token Usage Per Run"
+                yAxisLabel="Total Tokens"
+                valueFormatter={(value) => value.toLocaleString()}
+                height={250}
+              />
+            </div>
+          </div>
+
+          {/* Metrics Comparison */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700">
+            <button
+              onClick={() => toggleSection('metrics')}
+              className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              <h3 className="text-lg font-semibold flex items-center gap-2 dark:text-gray-100">
+                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                </svg>
+                Detailed Metrics Table
+              </h3>
+              <svg
+                className={`w-5 h-5 text-gray-400 transition-transform ${expandedSections.has('metrics') ? 'transform rotate-180' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {expandedSections.has('metrics') && (
+              <div className="px-6 pb-6">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Metric</th>
+                        {runs.map((run, index) => (
+                          <th key={run.id} className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Run {index + 1}
+                          </th>
+                        ))}
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Trend</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                      {Object.entries(metrics).map(([key, metric]) => {
+                        const metricInfo = METRIC_INFO[key];
+                        return (
+                          <tr key={key} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                            <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                              <div className="flex items-center">
+                                {metric.name}
+                                {metricInfo && (
+                                  <InfoTooltip
+                                    title={metricInfo.title}
+                                    description={metricInfo.description}
+                                    calculation={metricInfo.calculation}
+                                  />
+                                )}
+                              </div>
+                            </td>
+                            {metric.values.map((value, index) => (
+                              <td key={index} className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                                {key === 'totalCost' ? formatCost(value) :
+                                 key === 'passRate' ? `${value.toFixed(1)}%` :
+                                 key === 'avgLatency' ? `${value.toFixed(0)}ms` :
+                                 key === 'tokenUsage' ? value.toLocaleString() :
+                                 value.toFixed(2)}
+                                {index > 0 && (
+                                  <span className={`ml-2 text-xs ${metric.values[index] > metric.values[index - 1] ? (metric.isImprovement ? 'text-green-600' : 'text-red-600') : (metric.isImprovement ? 'text-red-600' : 'text-green-600')}`}>
+                                    {metric.values[index] > metric.values[index - 1] ? '↑' : metric.values[index] < metric.values[index - 1] ? '↓' : ''}
+                                  </span>
+                                )}
+                              </td>
+                            ))}
+                            <td className="px-4 py-3 whitespace-nowrap text-sm">
+                              <div className="flex items-center gap-2">
+                                <span>{getTrendIcon(metric.trend)}</span>
+                                <span className={metric.isImprovement ? 'text-green-600 font-medium' : metric.trend === 'degrading' ? 'text-red-600 font-medium' : 'text-gray-600'}>
+                                  {formatDelta(metric.deltaPercentage, true)}
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Test-by-Test Comparison - Continued in next section */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700">
+            <button
+              onClick={() => toggleSection('tests')}
+              className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              <h3 className="text-lg font-semibold flex items-center gap-2 dark:text-gray-100">
+                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
+                Test-by-Test Comparison ({filteredTests.length} tests)
+              </h3>
+              <svg
+                className={`w-5 h-5 text-gray-400 transition-transform ${expandedSections.has('tests') ? 'transform rotate-180' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {expandedSections.has('tests') && (
+              <div className="px-6 pb-6">
+                {/* Filters */}
+                <div className="mb-4 space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setFilterType('all')}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                        filterType === 'all'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      All Tests ({comparisonData.tests.length})
+                    </button>
+                    <button
+                      onClick={() => setFilterType('regressions')}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                        filterType === 'regressions'
+                          ? 'bg-red-600 text-white'
+                          : 'bg-red-50 text-red-700 hover:bg-red-100'
+                      }`}
+                    >
+                      🔴 Regressions ({comparisonData.tests.filter(t => t.status === 'regressed').length})
+                    </button>
+                    <button
+                      onClick={() => setFilterType('improvements')}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                        filterType === 'improvements'
+                          ? 'bg-green-600 text-white'
+                          : 'bg-green-50 text-green-700 hover:bg-green-100'
+                      }`}
+                    >
+                      🟢 Improvements ({comparisonData.tests.filter(t => t.status === 'improved').length})
+                    </button>
+                    <button
+                      onClick={() => setFilterType('changes')}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                        filterType === 'changes'
+                          ? 'bg-yellow-600 text-white'
+                          : 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
+                      }`}
+                    >
+                      🟡 All Changes ({comparisonData.tests.filter(t => t.status !== 'stable').length})
+                    </button>
+                    <button
+                      onClick={() => setFilterType('volatile')}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                        filterType === 'volatile'
+                          ? 'bg-orange-600 text-white'
+                          : 'bg-orange-50 text-orange-700 hover:bg-orange-100'
+                      }`}
+                    >
+                      ⚠️ Volatile ({comparisonData.tests.filter(t => t.status === 'volatile').length})
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search tests..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm dark:bg-gray-700 dark:text-gray-100"
+                  />
+                </div>
+
+                {/* Tests Table */}
+                <div className="overflow-x-auto">
+                  {filteredTests.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                      <p>No tests match the current filter.</p>
+                    </div>
+                  ) : (
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                      <thead className="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">#</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Test</th>
+                          {runs.map((run, index) => (
+                            <th key={run.id} className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                              Run {index + 1}
+                            </th>
+                          ))}
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {filteredTests.map((test) => (
+                          <tr key={test.testIndex} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                              {test.testIndex + 1}
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              <div>
+                                <p className="font-medium text-gray-900 dark:text-gray-100">{test.promptLabel}</p>
+                                {test.varDescription && test.varDescription.trim() !== '' && (
+                                  <p className="text-gray-500 text-xs mt-1 truncate max-w-md" title={test.varDescription}>
+                                    {test.varDescription}
+                                  </p>
+                                )}
+                                {(!test.varDescription || test.varDescription.trim() === '') && (
+                                  <p className="text-gray-400 text-xs mt-1 italic">Test #{test.testIndex + 1}</p>
+                                )}
+                              </div>
+                            </td>
+                            {test.results.map((result, index) => (
+                              <td key={index} className="px-4 py-3 whitespace-nowrap text-sm">
+                                <div className="space-y-1">
+                                  {/* Provider badge */}
+                                  {result.provider && (
+                                    <div className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded inline-block">
+                                      {result.provider.split(':')[1] || result.provider}
+                                    </div>
+                                  )}
+                                  {/* Pass/Fail and Score */}
+                                  <div className="flex items-center gap-2">
+                                  {result.pass ? (
+                                    <span className="text-green-600 font-medium">✅ {result.score.toFixed(2)}</span>
+                                  ) : (
+                                    <span className="text-red-600 font-medium">❌ {result.score.toFixed(2)}</span>
+                                  )}
+                                  </div>
+                                </div>
+                              </td>
+                            ))}
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {getStatusBadge(test.status)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Configuration Comparison */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700">
+            <button
+              onClick={() => toggleSection('config')}
+              className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              <h3 className="text-lg font-semibold flex items-center gap-2 dark:text-gray-100">
+                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Configuration Changes
+              </h3>
+              <svg
+                className={`w-5 h-5 text-gray-400 transition-transform ${expandedSections.has('config') ? 'transform rotate-180' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {expandedSections.has('config') && (() => {
+              // Check if there are any actual changes
+              const configChanges = Object.entries(config)
+                .filter(([key]) => !key.includes('Changes'))
+                .filter(([_, change]) => change && typeof change === 'object' && 'changed' in change && change.changed);
+
+              const hasConfigChanges = configChanges.length > 0;
+              const hasPromptChanges = config.promptChanges && config.promptChanges.length > 0;
+              const hasAssertionChanges = config.assertionChanges && config.assertionChanges.length > 0;
+              const hasAnyChanges = hasConfigChanges || hasPromptChanges || hasAssertionChanges;
+
+              return (
+                <div className="px-6 pb-6 space-y-6">
+                  {!hasAnyChanges && (
+                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                      <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <p className="text-sm font-medium">No configuration changes detected</p>
+                      <p className="text-xs text-gray-400 mt-1">All runs used the same configuration</p>
+                    </div>
+                  )}
+
+                  {/* Summary Table - Only show rows that changed */}
+                  {hasConfigChanges && (
+                    <div className="overflow-x-auto">
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Configuration Changes Summary</h4>
+                      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead className="bg-gray-50 dark:bg-gray-700">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Configuration</th>
+                            {runs.map((run, index) => (
+                              <th key={run.id} className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                Run {index + 1}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                          {configChanges.map(([key, change]) => (
+                            <tr key={key} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                                {change.field || key}
+                              </td>
+                              {(change.values || []).map((value, index) => (
+                                <td
+                                  key={index}
+                                  className={`px-4 py-3 whitespace-nowrap text-sm ${
+                                    (change.changeIndices || []).includes(index)
+                                      ? 'bg-yellow-50 dark:bg-yellow-900/30 font-medium text-yellow-900 dark:text-yellow-200'
+                                      : 'text-gray-700 dark:text-gray-300'
+                                  }`}
+                                >
+                                  {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                  {(change.changeIndices || []).includes(index) && (
+                                    <span className="ml-2 text-xs text-yellow-600 dark:text-yellow-400">← Changed</span>
+                                  )}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                {/* Detailed Prompt Changes */}
+                {config.promptChanges && config.promptChanges.length > 0 && (
+                  <div className="mt-6">
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Prompt Changes</h4>
+                    <div className="space-y-3">
+                      {config.promptChanges.map((change, idx) => (
+                        <div key={idx} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              change.change === 'added' ? 'bg-green-100 text-green-800' :
+                              change.change === 'removed' ? 'bg-red-100 text-red-800' :
+                              'bg-blue-100 text-blue-800'
+                            }`}>
+                              {change.change === 'added' ? '+ Added' : change.change === 'removed' ? '- Removed' : '~ Modified'}
+                            </span>
+                            <span className="font-medium text-sm text-gray-900 dark:text-gray-100">{change.promptLabel}</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">in Run {change.runIndex + 1}</span>
+                          </div>
+                          {change.change === 'modified' && (() => {
+                            const diff = getLineDiff(change.oldText || '', change.newText || '');
+                            return (
+                              <div className="mt-3 space-y-2">
+                                {/* Removed/Changed Lines */}
+                                <div>
+                                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Removed/Changed:</div>
+                                  <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded p-3 max-h-64 overflow-y-auto font-mono text-xs">
+                                    {diff.oldLines.map((part, i) => {
+                                      if (part.type === 'unchanged') return null;
+                                      return (
+                                        <div key={i} className="bg-red-100 dark:bg-red-900/50 border-l-4 border-red-500 px-2 py-1 mb-1">
+                                          <span className="text-red-700 dark:text-red-400 mr-2">-</span>
+                                          <span className="text-gray-800 dark:text-gray-200">{part.text}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                {/* Added/Changed Lines */}
+                                <div>
+                                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Added/Changed:</div>
+                                  <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded p-3 max-h-64 overflow-y-auto font-mono text-xs">
+                                    {diff.newLines.map((part, i) => {
+                                      if (part.type === 'unchanged') return null;
+                                      return (
+                                        <div key={i} className="bg-green-100 dark:bg-green-900/50 border-l-4 border-green-500 dark:border-green-600 px-2 py-1 mb-1">
+                                          <span className="text-green-700 dark:text-green-400 mr-2">+</span>
+                                          <span className="text-gray-800 dark:text-gray-200">{part.text}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                {/* Context Toggle */}
+                                <details className="mt-2">
+                                  <summary className="cursor-pointer text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium">
+                                    Show full diff with context
+                                  </summary>
+                                  <div className="mt-2 grid grid-cols-2 gap-4">
+                                    <div>
+                                      <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Before:</div>
+                                      <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded p-3 text-xs text-gray-800 dark:text-gray-200 max-h-64 overflow-y-auto font-mono whitespace-pre-wrap">
+                                        {diff.oldLines.map((part, i) => (
+                                          <div
+                                            key={i}
+                                            className={
+                                              part.type === 'removed'
+                                                ? 'bg-red-200 dark:bg-red-900/50 text-red-900 dark:text-red-300'
+                                                : 'text-gray-600 dark:text-gray-400'
+                                            }
+                                          >
+                                            {part.type === 'removed' && <span className="mr-2">-</span>}
+                                            {part.text}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">After:</div>
+                                      <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded p-3 text-xs text-gray-800 dark:text-gray-200 max-h-64 overflow-y-auto font-mono whitespace-pre-wrap">
+                                        {diff.newLines.map((part, i) => (
+                                          <div
+                                            key={i}
+                                            className={
+                                              part.type === 'added'
+                                                ? 'bg-green-200 dark:bg-green-900/50 text-green-900 dark:text-green-300'
+                                                : 'text-gray-600 dark:text-gray-400'
+                                            }
+                                          >
+                                            {part.type === 'added' && <span className="mr-2">+</span>}
+                                            {part.text}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </details>
+                              </div>
+                            );
+                          })()}
+                          {change.change === 'added' && (
+                            <div className="mt-3">
+                              <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded p-3 text-sm text-gray-800 dark:text-gray-200 max-h-32 overflow-y-auto">
+                                {change.newText}
+                              </div>
+                            </div>
+                          )}
+                          {change.change === 'removed' && (
+                            <div className="mt-3">
+                              <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded p-3 text-sm text-gray-800 dark:text-gray-200 max-h-32 overflow-y-auto">
+                                {change.oldText}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                  {/* Detailed Assertion Changes */}
+                  {config.assertionChanges && config.assertionChanges.length > 0 && (
+                    <div className="mt-6">
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Assertion Changes</h4>
+                      <div className="space-y-2">
+                        {config.assertionChanges.map((change, idx) => (
+                          <div key={idx} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-white dark:bg-gray-800 flex items-center gap-3">
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              change.change === 'added' ? 'bg-green-100 text-green-800' :
+                              change.change === 'removed' ? 'bg-red-100 text-red-800' :
+                              'bg-blue-100 text-blue-800'
+                            }`}>
+                              {change.change === 'added' ? '+ Added' : change.change === 'removed' ? '- Removed' : '~ Modified'}
+                            </span>
+                            <span className="font-medium text-sm text-gray-900 dark:text-gray-100">{change.type}</span>
+                            {change.details && (
+                              <span className="text-sm text-gray-600 dark:text-gray-400">{change.details}</span>
+                            )}
+                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-auto">Run {change.runIndex + 1}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      </div>
+
+      {/* AI Chat Assistant - Floating Button & Panel */}
+      {!chatOpen && (
+        <button
+          onClick={() => setChatOpen(true)}
+          className="fixed bottom-6 right-6 w-14 h-14 bg-purple-600 hover:bg-purple-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 z-50"
+          title="Ask AI Assistant"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+          </svg>
+        </button>
+      )}
+
+      {/* Chat Panel */}
+      {chatOpen && (
+        <div className="fixed bottom-6 right-6 w-96 h-[600px] bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col z-50">
+          {/* Chat Header */}
+          <div className="px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-t-lg flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+              <span className="font-semibold">AI Analysis Assistant</span>
+            </div>
+            <button
+              onClick={() => setChatOpen(false)}
+              className="text-white hover:text-gray-200 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Chat Messages */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-900">
+            {chatMessages.length === 0 && (
+              <div className="text-center text-gray-500 mt-8">
+                <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                <p className="text-sm font-medium mb-2">Ask me anything about this comparison!</p>
+                <p className="text-xs text-gray-400">Examples:</p>
+                <div className="mt-2 space-y-1 text-xs text-left max-w-xs mx-auto">
+                  <div className="bg-white dark:bg-gray-700 rounded p-2 border border-gray-200 dark:border-gray-600">
+                    "What are the main improvements?"
+                  </div>
+                  <div className="bg-white dark:bg-gray-700 rounded p-2 border border-gray-200 dark:border-gray-600">
+                    "Why did the pass rate decrease?"
+                  </div>
+                  <div className="bg-white dark:bg-gray-700 rounded p-2 border border-gray-200 dark:border-gray-600">
+                    "Which tests are most volatile?"
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {chatMessages.map((msg, idx) => (
+              <div
+                key={idx}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[85%] rounded-lg px-4 py-2 ${
+                    msg.role === 'user'
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200'
+                  }`}
+                >
+                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                  <p className={`text-xs mt-1 ${msg.role === 'user' ? 'text-purple-200' : 'text-gray-400'}`}>
+                    {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              </div>
+            ))}
+
+            {isAnalyzing && (
+              <div className="flex justify-start">
+                <div className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <svg className="animate-spin h-4 w-4 text-purple-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Analyzing...</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Chat Input */}
+          <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-b-lg">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleChatSubmit()}
+                placeholder="Ask a question..."
+                disabled={isAnalyzing}
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm disabled:bg-gray-100 dark:bg-gray-700 dark:text-gray-100 dark:disabled:bg-gray-600"
+              />
+              <button
+                onClick={handleChatSubmit}
+                disabled={!chatInput.trim() || isAnalyzing}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 text-white rounded-lg transition-colors flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

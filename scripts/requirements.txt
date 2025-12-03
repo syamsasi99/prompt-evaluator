@@ -1,0 +1,4 @@
+# Python dependencies for GCP upload script
+packaging>=23.0
+google-cloud-storage>=2.10.0
+google-auth>=2.23.0
