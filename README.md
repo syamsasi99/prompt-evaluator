@@ -1,7 +1,4 @@
 # Prompt Evaluator 🚀
-
-A powerful desktop GUI application for building, running, and analyzing [Promptfoo](https://promptfoo.dev) LLM evaluations. Built with Electron, React, and TypeScript.
-
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Version](https://img.shields.io/badge/version-0.0.1-green.svg)
 ![CI](https://github.com/syamsasi99/prompt-evaluator/workflows/CI/badge.svg)
