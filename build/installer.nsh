@@ -9,7 +9,6 @@
 Var NodeJsInstalled
 Var NodeJsVersion
 Var PromptfooInstalled
-Var NpmPath
 
 ; Custom page for dependency installation
 Page custom DependencyCheckPage DependencyInstallPage
