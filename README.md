@@ -22,7 +22,6 @@ Prompt Evaluator provides an intuitive graphical interface for creating and mana
 - 📊 **Dashboard Analytics**: Comprehensive dashboard with metrics, trends, and project filtering
 - 🔍 **Run Comparison**: Advanced side-by-side comparison with configuration change tracking
 - 📁 **Multi-Project Management**: Browse, switch between, and manage multiple projects with recent projects tracking
-- 🔄 **BigQuery Integration**: Export results to BigQuery for long-term analysis
 - 🎯 **Real-time Progress**: Monitor evaluation execution with live logs and progress tracking
 - 📄 **YAML Preview**: View generated configuration before running tests
 - 📤 **PDF Export**: Export evaluation results and comparisons to PDF format
@@ -60,7 +59,6 @@ Prompt Evaluator follows a modern desktop application architecture with clear se
 │  │  • ValidationService   - Input validation & error checks  │  │
 │  │  • EvaluationService   - Test execution & orchestration   │  │
 │  │  • HistoryService      - Evaluation history management    │  │
-│  │  • BigQueryService     - BigQuery integration & export    │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │                      Utilities Layer                      │  │
@@ -77,7 +75,6 @@ Prompt Evaluator follows a modern desktop application architecture with clear se
                     │  External Services  │
                     │  • Promptfoo CLI    │
                     │  • LLM APIs         │
-                    │  • BigQuery API     │
                     └─────────────────────┘
 ```
 
@@ -111,7 +108,6 @@ Prompt Evaluator follows a modern desktop application architecture with clear se
 - **[ValidationService.ts](src/services/ValidationService.ts)**: Validates project configuration before evaluation
 - **[EvaluationService.ts](src/services/EvaluationService.ts)**: Orchestrates test execution via Promptfoo CLI
 - **[HistoryService.ts](src/services/HistoryService.ts)**: Manages evaluation history storage and retrieval
-- **[BigQueryService.ts](src/services/BigQueryService.ts)**: Handles BigQuery export and data sync
 
 **Core Utilities**
 - **[buildYaml.ts](src/lib/buildYaml.ts)**: Generates Promptfoo YAML configuration from project state
@@ -126,7 +122,6 @@ Prompt Evaluator follows a modern desktop application architecture with clear se
 4. **Evaluation** → EvaluationService executes via Promptfoo CLI
 5. **Results** → Parsed and displayed in RunResults component
 6. **Storage** → HistoryService saves to local file system
-7. **Export** (Optional) → BigQueryService sends to cloud
 
 ### State Management
 
@@ -138,12 +133,6 @@ Prompt Evaluator follows a modern desktop application architecture with clear se
 - **Electron Store**: Persistent application settings
 
 ## Getting Started
-
-### Prerequisites
-
-- **Node.js** 18+ and npm
-- **macOS**, **Windows**, or **Linux**
-- **API Keys** for LLM providers you want to test (Gemini, OpenAI, Anthropic)
 
 
 ### Build and Install from Source
@@ -356,13 +345,6 @@ Navigate to the **History** tab:
 - Load, delete, or create new projects
 - Projects marked as favorites appear at the top
 
-### 11. Export to BigQuery (Optional)
-
-1. Set up BigQuery credentials in Settings
-2. Enable "Auto-export to BigQuery"
-3. Configure project/dataset/table IDs
-4. Results are automatically exported after each run
-
 ## Configuration Files
 
 ### Project Configuration
@@ -394,20 +376,6 @@ The app generates Promptfoo-compatible YAML configurations:
 - **Security tests**: OWASP LLM security testing config
 
 ## Advanced Features
-
-### BigQuery Integration
-
-Export evaluation results to BigQuery for:
-- Long-term result storage
-- Advanced analytics and visualization
-- Team collaboration
-- Compliance and auditing
-
-**Setup:**
-1. Create a Google Cloud service account
-2. Generate a JSON key file
-3. Add key as `BQ_API_TOKEN` in `.env`
-4. Configure BigQuery settings in app
 
 ### Security Testing
 
@@ -515,11 +483,6 @@ prompt-evaluator/
 - Check that dataset columns match prompt variables
 - Ensure providers are properly configured
 - Review logs for specific error messages
-
-### BigQuery export failing
-- Verify service account has BigQuery Data Editor role
-- Check table schema matches expected format
-- Ensure BQ_API_TOKEN is valid JSON
 
 ## Contributing
 
