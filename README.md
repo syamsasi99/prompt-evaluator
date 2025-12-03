@@ -1,7 +1,7 @@
 # Prompt Evaluator 🚀
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Version](https://img.shields.io/badge/version-0.0.1-green.svg)
-![CI](https://github.com/syamsasi99/prompt-evaluator/workflows/CI/badge.svg)
+![Build Status](https://github.com/syamsasi99/prompt-evaluator/workflows/CI/badge.svg)
 ![Release](https://github.com/syamsasi99/prompt-evaluator/workflows/Build%20and%20Release/badge.svg)
 [![codecov](https://codecov.io/gh/syamsasi99/prompt-evaluator/branch/master/graph/badge.svg)](https://codecov.io/gh/syamsasi99/prompt-evaluator)
 
