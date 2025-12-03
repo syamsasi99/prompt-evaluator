@@ -37,15 +37,15 @@ vi.mock('../lib/apiKeyValidation', () => ({
   getEnvFilePath: vi.fn(() => '~/. config/promptfooplusplus/.env'),
 }));
 
-const mockCheckApiKey = vi.fn();
+const mockGetApiKeyFromEnv = vi.fn();
 
 beforeEach(() => {
   global.window = global.window || ({} as any);
   (global.window as any).api = {
-    checkApiKey: mockCheckApiKey,
+    getApiKeyFromEnv: mockGetApiKeyFromEnv,
   };
 
-  mockCheckApiKey.mockResolvedValue({ hasApiKey: true });
+  mockGetApiKeyFromEnv.mockResolvedValue({ hasApiKey: true, apiKey: 'test-key-123' });
 });
 
 const renderWithToast = (ui: React.ReactElement) => {
@@ -498,12 +498,12 @@ describe('ProvidersForm', () => {
       );
 
       await waitFor(() => {
-        expect(mockCheckApiKey).toHaveBeenCalledWith('OPENAI_API_KEY');
+        expect(mockGetApiKeyFromEnv).toHaveBeenCalledWith('OPENAI_API_KEY');
       });
     });
 
     it('should show warning when API key not found', async () => {
-      mockCheckApiKey.mockResolvedValue({ hasApiKey: false });
+      mockGetApiKeyFromEnv.mockResolvedValue({ hasApiKey: false });
 
       renderWithToast(
         <ProvidersForm providers={mockProviders} onChange={mockOnChange} />
@@ -515,14 +515,14 @@ describe('ProvidersForm', () => {
     });
 
     it('should show success indicator when API key is configured', async () => {
-      mockCheckApiKey.mockResolvedValue({ hasApiKey: true });
+      mockGetApiKeyFromEnv.mockResolvedValue({ hasApiKey: true, apiKey: 'test-key-123' });
 
       renderWithToast(
         <ProvidersForm providers={mockProviders} onChange={mockOnChange} />
       );
 
       await waitFor(() => {
-        expect(screen.getByText(/API key configured/i)).toBeInTheDocument();
+        expect(screen.getByText(/API key found/i)).toBeInTheDocument();
       });
     });
 

@@ -173,7 +173,7 @@ describe('App Component - Preview YAML Logging', () => {
       render(<App />);
 
       await waitFor(() => {
-        expect(logger.info).toHaveBeenCalledWith('app', 'Promptfoo++ application starting...');
+        expect(logger.info).toHaveBeenCalledWith('app', 'Prompt Evaluator application starting...');
       }, { timeout: 10000 });
     }, 15000);
 

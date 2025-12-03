@@ -1,6 +1,6 @@
 {
   "name": "prompt-evaluator",
-  "version": "0.0.2",
+  "version": "0.0.1",
   "description": "Desktop GUI for building and running promptfoo evaluations",
   "main": "dist-electron/main.js",
   "author": "Carousell",

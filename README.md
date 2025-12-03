@@ -134,6 +134,32 @@ Prompt Evaluator follows a modern desktop application architecture with clear se
 
 ## Getting Started
 
+### Download Pre-built Installers (Recommended)
+
+The easiest way to get started is to download a pre-built installer from the [GitHub Releases](https://github.com/carousell/prompt-evaluator/releases) page.
+
+**Available Downloads:**
+- **macOS**: `.dmg` installer or `.zip` archive
+- **Windows**: `.exe` installer or `.zip` archive
+- **Linux**: `.AppImage` or `.deb` package
+
+#### Installation Instructions
+
+**macOS:**
+1. Download the `.dmg` file
+2. Open it and drag "Prompt Evaluator" to Applications
+3. See [INSTALLATION.md](INSTALLATION.md) for handling Gatekeeper warnings
+
+**Windows:**
+1. Download the `.exe` installer
+2. Run the installer and follow the wizard
+3. Or download the `.zip` for portable usage
+
+**Linux:**
+1. Download the `.AppImage` file
+2. Make it executable: `chmod +x Prompt-Evaluator-*.AppImage`
+3. Run it: `./Prompt-Evaluator-*.AppImage`
+4. Or install the `.deb` package: `sudo dpkg -i prompt-evaluator_*.deb`
 
 ### Build and Install from Source
 
