@@ -137,4 +137,4 @@ The GitHub Actions workflow:
 
 - The workflow uses `GITHUB_TOKEN` for authentication
 - No secrets (API keys, passwords) are exposed in the build process
-- Installers are not signed by default (see INSTALLATION.md for user implications)
+- Installers are not signed by default (users may see security warnings on macOS)

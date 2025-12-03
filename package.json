@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "Desktop GUI for building and running promptfoo evaluations",
   "main": "dist-electron/main.js",
-  "author": "Carousell",
+  "author": "syamsasi",
   "license": "MIT",
   "private": false,
   "scripts": {
@@ -74,7 +74,7 @@
     "wait-on": "^7.2.0"
   },
   "build": {
-    "appId": "com.carousell.promptevaluator",
+    "appId": "com.syamsasi.promptevaluator",
     "productName": "Prompt Evaluator",
     "asar": false,
     "publish": null,

@@ -1122,7 +1122,7 @@ function App() {
 
           {/* Footer */}
           <div className="mt-6 pt-4 border-t text-center text-xs text-muted-foreground">
-            Copyright Carousell
+            Copyright syamsasi
           </div>
         </div>
       </div>

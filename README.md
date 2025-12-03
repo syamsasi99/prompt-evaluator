@@ -136,7 +136,7 @@ Prompt Evaluator follows a modern desktop application architecture with clear se
 
 ### Download Pre-built Installers (Recommended)
 
-The easiest way to get started is to download a pre-built installer from the [GitHub Releases](https://github.com/carousell/prompt-evaluator/releases) page.
+The easiest way to get started is to download a pre-built installer from the [GitHub Releases](https://github.com/syamsasi/prompt-evaluator/releases) page.
 
 **Available Downloads:**
 - **macOS**: `.dmg` installer or `.zip` archive
@@ -148,7 +148,7 @@ The easiest way to get started is to download a pre-built installer from the [Gi
 **macOS:**
 1. Download the `.dmg` file
 2. Open it and drag "Prompt Evaluator" to Applications
-3. See [INSTALLATION.md](INSTALLATION.md) for handling Gatekeeper warnings
+3. If you see a Gatekeeper warning, right-click the app and select "Open"
 
 **Windows:**
 1. Download the `.exe` installer
@@ -173,7 +173,7 @@ If you want to build and install the application from source code:
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/carousell/prompt-evaluator.git
+git clone https://github.com/syamsasi/prompt-evaluator.git
 cd prompt-evaluator
 ```
 
@@ -206,7 +206,7 @@ The built application packages will be in the `release/` directory.
 **macOS:**
 - Open the generated `.dmg` file from `release/`
 - Drag "Prompt Evaluator" to Applications
-- See [INSTALLATION.md](INSTALLATION.md) for handling macOS Gatekeeper warnings (unsigned app)
+- If you see a Gatekeeper warning (unsigned app), right-click the app and select "Open"
 
 **Windows:**
 - Run the `.exe` installer from `release/`
@@ -535,4 +535,4 @@ Built on top of [Promptfoo](https://promptfoo.dev) - the open-source LLM evaluat
 
 ---
 
-**Copyright © Carousell**
+**Copyright © syamsasi**
