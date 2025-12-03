@@ -1,0 +1,58 @@
+name: Question/Support
+description: Ask a question or get help
+title: "[Question]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a question or need help? We're here to assist! Please provide details so we can help you effectively.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: What would you like to know or get help with?
+      placeholder: How do I...?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Provide any relevant context about what you're trying to accomplish
+      placeholder: |
+        I'm trying to...
+        I've already tried...
+    validations:
+      required: false
+
+  - type: textarea
+    id: code
+    attributes:
+      label: Code Example
+      description: If relevant, provide a minimal code example that demonstrates your question
+      render: typescript
+      placeholder: |
+        // Your code here
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Please provide details about your environment if relevant
+      placeholder: |
+        - OS: [e.g. macOS 14.0, Ubuntu 22.04, Windows 11]
+        - Node.js version: [e.g. 20.0.0]
+        - Package version: [e.g. 1.0.0]
+      value: |
+        - OS:
+        - Node.js version:
+        - Package version:
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Information
+      description: Add any other information that might be helpful
