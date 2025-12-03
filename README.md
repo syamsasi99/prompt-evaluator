@@ -145,59 +145,6 @@ Prompt Evaluator follows a modern desktop application architecture with clear se
 - **macOS**, **Windows**, or **Linux**
 - **API Keys** for LLM providers you want to test (Gemini, OpenAI, Anthropic)
 
-### Installation
-
-1. **Clone the repository**
-```bash
-git clone https://github.com/carousell/prompt-evaluator.git
-cd prompt-evaluator
-```
-
-2. **Install dependencies**
-```bash
-npm install
-```
-
-3. **Set up environment variables**
-
-Create a `.env` file in the root directory:
-```bash
-# Copy the example file
-cp .env.example .env
-```
-
-Edit `.env` and add your API keys:
-```bash
-# LLM Provider API Keys
-GEMINI_API_KEY=your_gemini_api_key_here
-OPENAI_API_KEY=your_openai_api_key_here
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
-
-# Optional: BigQuery Integration
-BQ_API_TOKEN=your_bigquery_service_account_json
-```
-
-### Running the Application
-
-**Development Mode** (with hot reload)
-```bash
-npm run dev
-```
-This starts both Vite dev server and Electron with hot module replacement.
-
-**Production Build**
-```bash
-# Build renderer and main process
-npm run build
-
-# Create distributable packages
-npm run dist        # All platforms
-npm run dist:mac    # macOS only
-npm run dist:win    # Windows only
-npm run dist:linux  # Linux only
-```
-
-Built applications are output to the `release/` directory.
 
 ### Build and Install from Source
 
@@ -220,14 +167,7 @@ cd prompt-evaluator
 npm install
 ```
 
-3. **Set up environment variables** (optional for development)
-```bash
-# Copy the example file
-cp .env.example .env
-# Edit .env and add your API keys
-```
-
-4. **Build the application**
+3. **Build the application**
 
 For your platform:
 ```bash
