@@ -5,6 +5,14 @@
 ![Release](https://github.com/syamsasi99/prompt-evaluator/workflows/Build%20and%20Release/badge.svg)
 [![codecov](https://codecov.io/gh/syamsasi99/prompt-evaluator/branch/master/graph/badge.svg)](https://codecov.io/gh/syamsasi99/prompt-evaluator)
 
+## Built With
+![Electron](https://img.shields.io/badge/Electron-28-47848f?logo=electron&logoColor=white)
+![React](https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06b6d4?logo=tailwindcss&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-5-646cff?logo=vite&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white)
+
 ## Overview
 
 Prompt Evaluator provides an intuitive graphical interface for creating and managing LLM evaluation projects. It eliminates the need to manually write YAML configuration files by offering a visual workflow for defining prompts, providers, datasets, and assertions.
@@ -532,6 +540,10 @@ For issues and questions:
 ## Acknowledgments
 
 Built on top of [Promptfoo](https://promptfoo.dev) - the open-source LLM evaluation framework.
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=syamsasi99/prompt-evaluator&type=Date)](https://star-history.com/#syamsasi99/prompt-evaluator&Date)
 
 ---
 
