@@ -46,12 +46,15 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        # Building Windows only for now
+        # TODO: Uncomment macOS and Linux when ready
+        os: [windows-latest]
+        # os: [macos-latest, ubuntu-latest, windows-latest]
         include:
-          - os: macos-latest
-            platform: mac
-          - os: ubuntu-latest
-            platform: linux
+          # - os: macos-latest
+          #   platform: mac
+          # - os: ubuntu-latest
+          #   platform: linux
           - os: windows-latest
             platform: win
 
