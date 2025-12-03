@@ -55,6 +55,10 @@ export default [
       ...reactHooks.configs.recommended.rules,
       // Disable prop-types as we use TypeScript
       'react/prop-types': 'off',
+      // React 17+ JSX transform - don't require React import
+      'react/react-in-jsx-scope': 'off',
+      // Allow unescaped entities in JSX (quotes, apostrophes)
+      'react/no-unescaped-entities': 'off',
       // Allow unused vars that start with underscore
       '@typescript-eslint/no-unused-vars': [
         'warn',
@@ -66,6 +70,12 @@ export default [
       '@typescript-eslint/no-require-imports': 'off',
       // Allow console logs (can be removed in production build)
       'no-console': 'off',
+      // Allow useless escape in regex (common in complex patterns)
+      'no-useless-escape': 'warn',
+      // Disable ban-ts-comment to allow @ts-ignore when needed
+      '@typescript-eslint/ban-ts-comment': 'warn',
+      // Disable no-undef as TypeScript handles this
+      'no-undef': 'off',
     },
   },
 ];
