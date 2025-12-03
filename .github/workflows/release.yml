@@ -73,8 +73,6 @@ jobs:
 
       - name: Build installer for ${{ matrix.platform }}
         run: npm run dist:${{ matrix.platform }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: List release files (macOS/Linux)
         if: matrix.os != 'windows-latest'
