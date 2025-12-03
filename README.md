@@ -3,7 +3,10 @@
 A powerful desktop GUI application for building, running, and analyzing [Promptfoo](https://promptfoo.dev) LLM evaluations. Built with Electron, React, and TypeScript.
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
-![Version](https://img.shields.io/badge/version-1.0.0-green.svg)
+![Version](https://img.shields.io/badge/version-0.0.1-green.svg)
+![CI](https://github.com/syamsasi99/prompt-evaluator/workflows/CI/badge.svg)
+![Release](https://github.com/syamsasi99/prompt-evaluator/workflows/Build%20and%20Release/badge.svg)
+[![codecov](https://codecov.io/gh/syamsasi99/prompt-evaluator/branch/master/graph/badge.svg)](https://codecov.io/gh/syamsasi99/prompt-evaluator)
 
 ## Overview
 
@@ -136,7 +139,7 @@ Prompt Evaluator follows a modern desktop application architecture with clear se
 
 ### Download Pre-built Installers (Recommended)
 
-The easiest way to get started is to download a pre-built installer from the [GitHub Releases](https://github.com/syamsasi/prompt-evaluator/releases) page.
+The easiest way to get started is to download a pre-built installer from the [GitHub Releases](https://github.com/syamsasi99/prompt-evaluator/releases) page.
 
 **Available Downloads:**
 - **macOS**: `.dmg` installer or `.zip` archive
@@ -173,7 +176,7 @@ If you want to build and install the application from source code:
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/syamsasi/prompt-evaluator.git
+git clone https://github.com/syamsasi99/prompt-evaluator.git
 cd prompt-evaluator
 ```
 
