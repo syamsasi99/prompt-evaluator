@@ -185,8 +185,8 @@ defaultTest:
       weight: 1
 
 outputPath:
-  - /Users/syamsasi/Library/Application Support/promptfooplusplus/output.html
-  - /Users/syamsasi/Library/Application Support/promptfooplusplus/output.json
+  - /Users/syamsasi/Library/Application Support/prompt-eval/output.html
+  - /Users/syamsasi/Library/Application Support/prompt-eval/output.json
 
 evaluateOptions:
   maxConcurrency: 4

@@ -4,8 +4,8 @@
 
 set -e
 
-APP_NAME="Promptfoo++"
-LOG_FILE="/tmp/promptfoo-install.log"
+APP_NAME="prompt-evaluator"
+LOG_FILE="/tmp/prompt-evaluator-install.log"
 
 # Colors for output
 RED='\033[0;31m'

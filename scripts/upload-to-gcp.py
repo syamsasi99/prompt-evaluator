@@ -3,7 +3,7 @@
 Upload DMG files to GCP Storage Bucket
 
 This script reads GCP credentials from an environment variable (base64-encoded),
-decodes it in memory, and uploads DMG files to the promptfooplusplus bucket.
+decodes it in memory, and uploads DMG files to the prompt-eval bucket.
 
 Usage:
     python upload-to-gcp.py <version> <dmg_path>
@@ -13,7 +13,7 @@ Environment Variables:
 
 Example:
     export GCP_ENCODED_API_TOKEN="<base64-encoded-json>"
-    python upload-to-gcp.py 1.0.1 release/Promptfoo++-1.0.1-arm64.dmg
+    python upload-to-gcp.py 1.0.1 release/prompt-evaluator-1.0.1-arm64.dmg
 """
 
 import os
@@ -26,7 +26,7 @@ from google.cloud import storage
 from google.oauth2 import service_account
 
 # Configuration
-BUCKET_NAME = "promptfooplusplus"
+BUCKET_NAME = "prompt-eval"
 RELEASES_PREFIX = "releases"
 
 
@@ -152,7 +152,7 @@ def main():
     # Check arguments
     if len(sys.argv) != 3:
         print("Usage: python upload-to-gcp.py <version> <dmg_path>")
-        print("Example: python upload-to-gcp.py 1.0.1 release/Promptfoo++-1.0.1-arm64.dmg")
+        print("Example: python upload-to-gcp.py 1.0.1 release/prompt-evaluator-1.0.1-arm64.dmg")
         sys.exit(1)
 
     version = sys.argv[1]

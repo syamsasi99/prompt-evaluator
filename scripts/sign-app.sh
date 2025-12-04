@@ -4,7 +4,7 @@
 
 set -e
 
-APP_PATH="${1:-release/mac-arm64/Promptfoo++.app}"
+APP_PATH="${1:-release/mac-arm64/prompt-evaluator.app}"
 
 if [ ! -d "$APP_PATH" ]; then
     echo "❌ Error: App not found at $APP_PATH"

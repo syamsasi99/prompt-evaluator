@@ -34,7 +34,7 @@ vi.mock('../lib/apiKeyValidation', () => ({
       docsUrl: 'https://ai.google.dev/docs',
     },
   },
-  getEnvFilePath: vi.fn(() => '~/. config/promptfooplusplus/.env'),
+  getEnvFilePath: vi.fn(() => '~/. config/prompt-evaluator/.env'),
 }));
 
 const mockGetApiKeyFromEnv = vi.fn();

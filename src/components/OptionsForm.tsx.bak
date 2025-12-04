@@ -574,7 +574,7 @@ export function OptionsForm({ options, onChange, onBigQuerySyncChange }: Options
                         const error = validateJsonPath(e.target.value);
                         setJsonPathError(error);
                       }}
-                      placeholder="~/Library/Application Support/promptfooplusplus/output.json"
+                      placeholder="~/Library/Application Support/prompt-evaluator/output.json"
                       className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                         jsonPathError ? 'border-red-500' : 'border-gray-300'
                       }`}

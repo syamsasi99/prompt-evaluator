@@ -182,8 +182,8 @@ function App() {
   const [dataset, setDataset] = useState<Dataset | undefined>(undefined);
   const [assertions, setAssertions] = useState<Assertion[]>([]);
   const [options, setOptions] = useState<ProjectOptions>({
-    outputPath: '~/Library/Application Support/promptfooplusplus/output.html',
-    jsonOutputPath: '~/Library/Application Support/promptfooplusplus/output.json',
+    outputPath: '~/Library/Application Support/prompt-evaluator/output.html',
+    jsonOutputPath: '~/Library/Application Support/prompt-evaluator/output.json',
     maxConcurrency: 4,
     cache: false,
     openReportAfterTest: false,

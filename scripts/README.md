@@ -102,11 +102,11 @@ UPLOAD SUMMARY
    ZIP: gs://prompt-evaluator/releases/latest/Prompt-Evaluator-1.0.1-arm64-mac.zip
 
 🔐 Signed URLs (valid for 365 days):
-   Versioned DMG: https://storage.googleapis.com/promptfooplusplus/releases/v1.0.1/Prompt-Evaluator-1.0.1-arm64.dmg?X-Goog-Algorith...
-   Latest DMG: https://storage.googleapis.com/promptfooplusplus/releases/latest/Prompt-Evaluator-1.0.1-arm64.dmg?X-Goog-Algorithm...
+   Versioned DMG: https://storage.googleapis.com/prompt-eval/releases/v1.0.1/Prompt-Evaluator-1.0.1-arm64.dmg?X-Goog-Algorith...
+   Latest DMG: https://storage.googleapis.com/prompt-eval/releases/latest/Prompt-Evaluator-1.0.1-arm64.dmg?X-Goog-Algorithm...
 
 🌐 Browse all releases (requires GCP auth):
-   https://console.cloud.google.com/storage/browser/promptfooplusplus/releases
+   https://console.cloud.google.com/storage/browser/prompt-eval/releases
 
 ℹ️  Note: Files are stored privately. Use signed URLs for access.
 ```
@@ -134,7 +134,7 @@ Signed URLs provide temporary, secure access to private GCS objects without maki
 
 **Example signed URL:**
 ```
-https://storage.googleapis.com/promptfooplusplus/releases/v1.0.1/Prompt-Evaluator-1.0.1-arm64.dmg?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=...&X-Goog-Date=20250128T000000Z&X-Goog-Expires=31536000&X-Goog-SignedHeaders=host&X-Goog-Signature=...
+https://storage.googleapis.com/prompt-eval/releases/v1.0.1/Prompt-Evaluator-1.0.1-arm64.dmg?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=...&X-Goog-Date=20250128T000000Z&X-Goog-Expires=31536000&X-Goog-SignedHeaders=host&X-Goog-Signature=...
 ```
 
 This URL can be shared publicly and will work for 1 year without requiring GCP authentication.

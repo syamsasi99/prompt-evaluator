@@ -1046,7 +1046,7 @@ export function registerIpcHandlers() {
               '📌 SOLUTION (Simple - takes 2 minutes):\n' +
               '   Set up Gemini API key:\n' +
               '   1. Get a FREE Gemini API key from: https://makersuite.google.com/app/apikey\n' +
-              '   2. In Promptfoo++, go to Settings (gear icon)\n' +
+              '   2. In Prompt Evaluator, go to Settings (gear icon)\n' +
               '   3. Set GEMINI_API_KEY to your API key\n' +
               '   4. Restart the evaluation\n\n' +
               '   Your provider "google:gemini-*" will now work correctly!\n\n' +
@@ -2764,7 +2764,7 @@ Keep responses conversational but informative. Use bullet points for clarity whe
   // =============================================================================
 
   const METADATA_FILE_NAME = '.promptfoo-metadata.json';
-  const DEFAULT_PROJECTS_FOLDER = 'Promptfoo++/Projects';
+  const DEFAULT_PROJECTS_FOLDER = 'prompt-evaluator/Projects';
 
   /**
    * Get metadata file path

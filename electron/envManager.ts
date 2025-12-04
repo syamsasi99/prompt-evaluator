@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as chokidar from 'chokidar';
 
-const DEFAULT_ENV_CONTENT = `# Promptfoo++ Environment Variables
+const DEFAULT_ENV_CONTENT = `# Prompt Evaluator Environment Variables
 #
 # Add your API keys here. Get free API keys from:
 # - Gemini: https://makersuite.google.com/app/apikey

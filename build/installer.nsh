@@ -1,4 +1,4 @@
-; NSIS Custom Installer Script for Promptfoo++
+; NSIS Custom Installer Script for prompt-eval
 ; Checks and installs Node.js and promptfoo during installation
 
 !include "MUI2.nsh"
@@ -69,7 +69,7 @@ Function DependencyInstallPage
       Quit
 
     SkipNode:
-      MessageBox MB_OK|MB_ICONEXCLAMATION "Warning: Promptfoo++ requires Node.js to function properly.$\n$\nYou can install it later from: https://nodejs.org"
+      MessageBox MB_OK|MB_ICONEXCLAMATION "Warning: prompt-evaluator requires Node.js to function properly.$\n$\nYou can install it later from: https://nodejs.org"
   ${EndIf}
 
   ; If Node.js is installed but promptfoo is not, install promptfoo
@@ -108,7 +108,7 @@ Function .onInstSuccess
   ; Show final message
   ${If} $NodeJsInstalled == "true"
   ${AndIf} $PromptfooInstalled == "true"
-    MessageBox MB_OK|MB_ICONINFORMATION "Installation complete!$\n$\nAll dependencies are installed and ready.$\n$\nYou can now launch Promptfoo++."
+    MessageBox MB_OK|MB_ICONINFORMATION "Installation complete!$\n$\nAll dependencies are installed and ready.$\n$\nYou can now launch Prompt Evaluator++."
   ${ElseIf} $NodeJsInstalled == "false"
     MessageBox MB_OK|MB_ICONEXCLAMATION "Installation complete, but Node.js is not installed.$\n$\nPlease install Node.js from: https://nodejs.org$\n$\nThen install promptfoo using:$\nnpm install -g promptfoo"
   ${ElseIf} $PromptfooInstalled == "false"
