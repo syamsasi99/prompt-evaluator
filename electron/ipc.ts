@@ -77,10 +77,10 @@ function sanitizeJSON(obj: any): any {
   if (obj && typeof obj === 'object') {
     const sanitized: any = {};
     for (const [key, value] of Object.entries(obj)) {
-      // Redact keys that contain sensitive information
+      // Skip (don't include) keys that contain sensitive information
       // BUT preserve tokenUsage and similar metrics
       const keyLower = key.toLowerCase();
-      const shouldRedact = (
+      const shouldSkip = (
         keyLower === 'apikey' ||
         keyLower === 'api_key' ||
         keyLower === 'secret' ||
@@ -88,11 +88,11 @@ function sanitizeJSON(obj: any): any {
         (keyLower.includes('token') && !keyLower.includes('tokenusage') && !keyLower.includes('tokens'))
       );
 
-      if (shouldRedact) {
-        sanitized[key] = '[REDACTED]';
-      } else {
+      if (!shouldSkip) {
+        // Only include non-sensitive keys
         sanitized[key] = sanitizeJSON(value);
       }
+      // If shouldSkip is true, we simply don't add the key to sanitized object
     }
     return sanitized;
   }
