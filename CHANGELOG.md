@@ -29,7 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi-project management with recent projects tracking
 - Real-time progress monitoring with live logs
 - YAML preview before test execution
-- PDF export for evaluation results and comparisons
 - Electron-based desktop application for macOS, Windows, and Linux
 - First-launch dependency checking and setup wizard
 - Interactive tutorial for new users

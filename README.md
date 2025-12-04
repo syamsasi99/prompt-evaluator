@@ -32,7 +32,6 @@ Prompt Evaluator provides an intuitive graphical interface for creating and mana
 - 📁 **Multi-Project Management**: Browse, switch between, and manage multiple projects with recent projects tracking
 - 🎯 **Real-time Progress**: Monitor evaluation execution with live logs and progress tracking
 - 📄 **YAML Preview**: View generated configuration before running tests
-- 📤 **PDF Export**: Export evaluation results and comparisons to PDF format
 
 ## Architecture
 
@@ -105,7 +104,7 @@ Prompt Evaluator follows a modern desktop application architecture with clear se
 - **[DatasetForm.tsx](src/components/DatasetForm.tsx)**: Build test datasets (manual, CSV import, AI-generated)
 - **[AssertionsForm.tsx](src/components/AssertionsForm.tsx)**: Define test assertions and success criteria
 - **[OptionsForm.tsx](src/components/OptionsForm.tsx)**: Configure evaluation settings and integrations
-- **[RunResults.tsx](src/components/RunResults.tsx)**: Display evaluation results with AI analysis and PDF export
+- **[RunResults.tsx](src/components/RunResults.tsx)**: Display evaluation results with AI analysis
 - **[History.tsx](src/components/History.tsx)**: Browse past evaluations with filtering and comparison mode
 - **[Dashboard.tsx](src/components/Dashboard.tsx)**: Analytics dashboard with metrics, trends, and project filtering
 - **[ComparisonView.tsx](src/components/ComparisonView.tsx)**: Side-by-side comparison with AI-powered analysis
@@ -364,7 +363,6 @@ Navigate to the **History** tab:
   - Performance metrics comparison
   - Test result changes
   - AI-powered insights on improvements
-- Export comparison to PDF
 
 ### 10. Manage Projects
 
