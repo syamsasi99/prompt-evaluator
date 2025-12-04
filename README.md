@@ -4,6 +4,7 @@
 ![Build Status](https://github.com/syamsasi99/prompt-evaluator/workflows/CI/badge.svg)
 ![Release](https://github.com/syamsasi99/prompt-evaluator/workflows/Build%20and%20Release/badge.svg)
 [![codecov](https://codecov.io/gh/syamsasi99/prompt-evaluator/branch/master/graph/badge.svg)](https://codecov.io/gh/syamsasi99/prompt-evaluator)
+![Downloads](https://img.shields.io/github/downloads/syamsasi99/prompt-evaluator/total.svg)
 
 ## Built With
 ![Electron](https://img.shields.io/badge/Electron-28-47848f?logo=electron&logoColor=white)
