@@ -45,7 +45,7 @@ export class InstallerWindow {
       step: 'checking-nodejs',
       status: 'pending',
       currentStep: 0,
-      totalSteps: 5,
+      totalSteps: 6,
       canProceed: false,
     };
   }
@@ -280,6 +280,7 @@ export class InstallerWindow {
       'checking-npm',
       'checking-promptfoo',
       'verifying-promptfoo-version',
+      'installing-promptfoo',
     ];
     return steps.indexOf(step) + 1;
   }
@@ -288,6 +289,34 @@ export class InstallerWindow {
    * Generate the installer HTML
    */
   private getHTML(): string {
+    // Read and encode the icon as base64
+    let iconDataUrl = '';
+    try {
+      // Try multiple possible icon paths
+      const iconPaths = [
+        path.join(__dirname, '../assets/icon.png'),
+        path.join(__dirname, '../../assets/icon.png'),
+        path.join(process.resourcesPath, 'app/assets/icon.png'),
+        path.join(app.getAppPath(), 'assets/icon.png'),
+      ];
+
+      for (const iconPath of iconPaths) {
+        if (fs.existsSync(iconPath)) {
+          const iconBuffer = fs.readFileSync(iconPath);
+          const iconBase64 = iconBuffer.toString('base64');
+          iconDataUrl = `data:image/png;base64,${iconBase64}`;
+          console.log('Icon loaded from:', iconPath);
+          break;
+        }
+      }
+
+      if (!iconDataUrl) {
+        console.warn('Icon not found in any of the expected paths:', iconPaths);
+      }
+    } catch (error) {
+      console.error('Failed to load icon:', error);
+    }
+
     return `
       <!DOCTYPE html>
       <html>
@@ -320,8 +349,17 @@ export class InstallerWindow {
           }
 
           .logo {
-            font-size: 48px;
             margin-bottom: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 48px;
+          }
+
+          .logo img {
+            width: 64px;
+            height: 64px;
+            object-fit: contain;
           }
 
           h1 {
@@ -777,7 +815,7 @@ export class InstallerWindow {
       </head>
       <body>
         <div class="header">
-          <div class="logo">🚀</div>
+          <div class="logo">${iconDataUrl ? `<img src="${iconDataUrl}" alt="Prompt Evaluator" style="width: 64px; height: 64px; object-fit: contain;" />` : '🚀'}</div>
           <h1>Setting up Prompt Evaluator</h1>
           <p class="subtitle">Checking and installing required dependencies</p>
         </div>
@@ -810,7 +848,7 @@ export class InstallerWindow {
             <div class="progress-section">
               <div class="progress-header">
                 <span class="progress-title">Installation Progress</span>
-                <span class="progress-counter"><span id="current-step">0</span> of <span id="total-steps">5</span></span>
+                <span class="progress-counter"><span id="current-step">0</span> of <span id="total-steps">6</span></span>
               </div>
               <div class="progress-bar-container">
                 <div class="progress-bar" id="progress-bar" style="width: 0%"></div>
@@ -849,14 +887,15 @@ export class InstallerWindow {
             { id: 'verifying-nodejs-version', name: 'Verifying Node.js version', icon: '✓' },
             { id: 'checking-npm', name: 'Checking npm availability', icon: '📦' },
             { id: 'checking-promptfoo', name: 'Checking promptfoo installation', icon: '🔍' },
-            { id: 'verifying-promptfoo-version', name: 'Verifying promptfoo version', icon: '✓' }
+            { id: 'verifying-promptfoo-version', name: 'Verifying promptfoo version', icon: '✓' },
+            { id: 'installing-promptfoo', name: 'Installing promptfoo (if needed)', icon: '⬇️' }
           ];
 
           var currentProgress = {
             step: 'checking-nodejs',
             status: 'pending',
             currentStep: 0,
-            totalSteps: 5,
+            totalSteps: 6,
             canProceed: false
           };
 
@@ -976,8 +1015,14 @@ export class InstallerWindow {
               if (statusText) statusText.textContent = progress.message || 'Error occurred';
             }
 
-            // Update progress bar
-            var percentage = Math.round((progress.currentStep / progress.totalSteps) * 100);
+            // Update progress bar - only show progress for successful steps, not when failed
+            var percentage;
+            if (progress.step === 'failed' || progress.status === 'error') {
+              // Don't show 100% on error - show progress up to the point of failure
+              percentage = Math.round((progress.currentStep / progress.totalSteps) * 100);
+            } else {
+              percentage = Math.round((progress.currentStep / progress.totalSteps) * 100);
+            }
             document.getElementById('progress-bar').style.width = percentage + '%';
             document.getElementById('progress-percentage').textContent = percentage + '%';
             document.getElementById('current-step').textContent = progress.currentStep;

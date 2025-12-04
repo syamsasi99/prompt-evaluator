@@ -100,9 +100,15 @@ class ProgressWindow {
   }
 
   private getHTML(): string {
+    // Only count successful steps, not errors or pending
     const completedSteps = this.steps.filter((s) => s.status === 'success').length;
     const totalSteps = this.steps.length;
-    const progressPercent = (completedSteps / totalSteps) * 100;
+    // Calculate percentage based on successfully completed steps only
+    // If any step has an error, cap the progress at that point
+    const hasError = this.steps.some((s) => s.status === 'error');
+    const progressPercent = hasError ?
+      (completedSteps / totalSteps) * 100 :
+      (completedSteps / totalSteps) * 100;
 
     const stepsHTML = this.steps
       .map((step) => {
@@ -360,6 +366,150 @@ export async function checkDependencies(progressWindow?: ProgressWindow): Promis
   const nodejs = await checkNodeJs(progressWindow);
   const promptfoo = await checkPromptfoo(progressWindow);
   return { nodejs, promptfoo };
+}
+
+/**
+ * Install Node.js using Homebrew on macOS
+ */
+async function installNodeWithBrew(installer: InstallerWindow): Promise<{ success: boolean; error?: string }> {
+  return new Promise((resolve) => {
+    installer.addLog('📦 Installing Node.js using Homebrew...', 'info');
+    installer.addLog('Running: brew install node', 'info');
+
+    const extendedPath = process.env.PATH + ':/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin';
+
+    const brewInstall = spawn('brew', ['install', 'node'], {
+      shell: true,
+      env: { ...process.env, PATH: extendedPath },
+    });
+
+    let errorOutput = '';
+
+    brewInstall.stdout.on('data', (data) => {
+      const text = data.toString().trim();
+      if (text) installer.addLog(text, 'info');
+    });
+
+    brewInstall.stderr.on('data', (data) => {
+      const text = data.toString().trim();
+      if (text) {
+        errorOutput += text + '\n';
+        if (text.toLowerCase().includes('error')) {
+          installer.addLog(text, 'error');
+        } else {
+          installer.addLog(text, 'info');
+        }
+      }
+    });
+
+    brewInstall.on('close', (code) => {
+      if (code === 0) {
+        installer.addLog('✅ Homebrew installation completed successfully!', 'success');
+        resolve({ success: true });
+      } else {
+        installer.addLog(`❌ Homebrew installation failed with exit code ${code}`, 'error');
+        resolve({ success: false, error: errorOutput || 'Installation failed' });
+      }
+    });
+
+    brewInstall.on('error', (err) => {
+      installer.addLog(`❌ Failed to run brew: ${err.message}`, 'error');
+      resolve({ success: false, error: err.message });
+    });
+  });
+}
+
+/**
+ * Install Node.js using winget on Windows
+ */
+async function installNodeWithWinget(installer: InstallerWindow): Promise<{ success: boolean; error?: string }> {
+  return new Promise((resolve) => {
+    installer.addLog('📦 Installing Node.js using winget...', 'info');
+    installer.addLog('Running: winget install OpenJS.NodeJS', 'info');
+
+    const wingetInstall = spawn('winget', ['install', 'OpenJS.NodeJS', '--silent'], {
+      shell: true,
+    });
+
+    let errorOutput = '';
+
+    wingetInstall.stdout.on('data', (data) => {
+      const text = data.toString().trim();
+      if (text) installer.addLog(text, 'info');
+    });
+
+    wingetInstall.stderr.on('data', (data) => {
+      const text = data.toString().trim();
+      if (text) {
+        errorOutput += text + '\n';
+        installer.addLog(text, 'error');
+      }
+    });
+
+    wingetInstall.on('close', (code) => {
+      if (code === 0) {
+        installer.addLog('✅ winget installation completed successfully!', 'success');
+        resolve({ success: true });
+      } else {
+        installer.addLog(`❌ winget installation failed with exit code ${code}`, 'error');
+        resolve({ success: false, error: errorOutput || 'Installation failed' });
+      }
+    });
+
+    wingetInstall.on('error', (err) => {
+      installer.addLog(`❌ Failed to run winget: ${err.message}`, 'error');
+      resolve({ success: false, error: err.message });
+    });
+  });
+}
+
+/**
+ * Install Node.js using apt on Linux (Debian/Ubuntu)
+ */
+async function installNodeWithApt(installer: InstallerWindow): Promise<{ success: boolean; error?: string }> {
+  return new Promise((resolve) => {
+    installer.addLog('📦 Installing Node.js using apt...', 'info');
+    installer.addLog('Running: sudo apt-get update && sudo apt-get install -y nodejs npm', 'info');
+
+    // Note: This requires sudo and may need user password
+    const aptInstall = spawn('bash', ['-c', 'sudo apt-get update && sudo apt-get install -y nodejs npm'], {
+      shell: true,
+    });
+
+    let errorOutput = '';
+
+    aptInstall.stdout.on('data', (data) => {
+      const text = data.toString().trim();
+      if (text) installer.addLog(text, 'info');
+    });
+
+    aptInstall.stderr.on('data', (data) => {
+      const text = data.toString().trim();
+      if (text) {
+        errorOutput += text + '\n';
+        if (text.toLowerCase().includes('error')) {
+          installer.addLog(text, 'error');
+        } else {
+          installer.addLog(text, 'info');
+        }
+      }
+    });
+
+    aptInstall.on('close', (code) => {
+      if (code === 0) {
+        installer.addLog('✅ apt installation completed successfully!', 'success');
+        resolve({ success: true });
+      } else {
+        installer.addLog(`❌ apt installation failed with exit code ${code}`, 'error');
+        resolve({ success: false, error: errorOutput || 'Installation failed' });
+      }
+    });
+
+    aptInstall.on('error', (err) => {
+      installer.addLog(`❌ Failed to run apt: ${err.message}`, 'error');
+      resolve({ success: false, error: err.message });
+    });
+  });
 }
 
 /**
@@ -625,8 +775,8 @@ export async function handleFirstLaunch(): Promise<boolean> {
   // Give the window time to show
   await new Promise((resolve) => setTimeout(resolve, 500));
 
-  // Run dependency checks
-  await runDependencyChecks(installer);
+  // Run dependency checks and get the result
+  const needsRestart = await runDependencyChecks(installer);
 
   // Wait for user to click Continue (or close)
   const success = await installPromise;
@@ -635,7 +785,13 @@ export async function handleFirstLaunch(): Promise<boolean> {
   await new Promise((resolve) => setTimeout(resolve, 500));
 
   installer.close();
-  markFirstLaunchComplete();
+
+  // Only mark first launch as complete if we don't need a restart
+  // If we need a restart (e.g., Node.js was just installed), keep the flag
+  // so setup runs again after restart
+  if (!needsRestart) {
+    markFirstLaunchComplete();
+  }
 
   return success;
 }
@@ -851,8 +1007,9 @@ async function installPromptfooWithNpm(installer: InstallerWindow): Promise<{ su
 
 /**
  * Run all dependency checks
+ * Returns true if a restart is needed, false otherwise
  */
-async function runDependencyChecks(installer: InstallerWindow): Promise<void> {
+async function runDependencyChecks(installer: InstallerWindow): Promise<boolean> {
   installer.addLog('Starting dependency verification...', 'info');
   installer.addLog(`Platform: ${PLATFORM}`, 'info');
 
@@ -865,23 +1022,108 @@ async function runDependencyChecks(installer: InstallerWindow): Promise<void> {
     installer.addLog('❌ Node.js not found or version is too old', 'error');
     installer.updateStep('checking-nodejs', 'error', 'Not found or too old');
     installer.updateStep('verifying-nodejs-version', 'error', 'Skipped');
+
+    installer.addLog('', 'info');
+    installer.addLog('📦 Node.js v16 or higher is required to run Prompt Evaluator', 'warning');
+    installer.addLog('', 'info');
+    installer.addLog('Attempting automatic installation...', 'info');
+    installer.addLog('', 'info');
+
+    // Try automatic installation based on platform
+    let installResult: { success: boolean; error?: string } | null = null;
+
+    if (PLATFORM === 'darwin') {
+      // macOS: Try Homebrew
+      installer.addLog('Checking for Homebrew...', 'info');
+      const hasHomebrew = await checkHomebrew();
+
+      if (hasHomebrew) {
+        installer.addLog('✓ Homebrew found, installing Node.js...', 'success');
+        installResult = await installNodeWithBrew(installer);
+      } else {
+        installer.addLog('⚠️ Homebrew not found', 'warning');
+        installer.addLog('', 'info');
+        installer.addLog('To enable automatic installation, please install Homebrew:', 'info');
+        installer.addLog('  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"', 'info');
+        installer.addLog('', 'info');
+      }
+    } else if (PLATFORM === 'win32') {
+      // Windows: Try winget (available on Windows 10 1709+ and Windows 11)
+      installer.addLog('Attempting installation using winget...', 'info');
+      installResult = await installNodeWithWinget(installer);
+    } else {
+      // Linux: Try apt (works for Debian/Ubuntu)
+      installer.addLog('Attempting installation using apt...', 'info');
+      installResult = await installNodeWithApt(installer);
+    }
+
+    // Check if installation succeeded
+    if (installResult?.success) {
+      installer.addLog('', 'success');
+      installer.addLog('✅ Node.js has been installed successfully!', 'success');
+      installer.addLog('', 'info');
+      installer.addLog('⚠️ Please close and restart Prompt Evaluator to complete the setup', 'warning');
+      installer.addLog('', 'info');
+
+      installer.updateStep('checking-nodejs', 'success', 'Installed successfully');
+      installer.updateStep('verifying-nodejs-version', 'success', 'Ready after restart');
+      installer.updateStep('checking-npm', 'error', 'Pending restart');
+      installer.updateStep('checking-promptfoo', 'error', 'Pending restart');
+      installer.updateStep('verifying-promptfoo-version', 'error', 'Pending restart');
+
+      installer.updateProgress({ currentStep: 2 });
+      installer.setComplete(false, 'Node.js installed! Please restart the application to continue setup.');
+      return true; // Restart needed
+    }
+
+    // If automatic installation failed, show manual instructions
+    installer.addLog('', 'warning');
+    installer.addLog('Automatic installation failed. Please install manually:', 'warning');
+    installer.addLog('', 'info');
+
     installer.updateStep('checking-npm', 'error', 'Skipped');
     installer.updateStep('checking-promptfoo', 'error', 'Skipped');
     installer.updateStep('verifying-promptfoo-version', 'error', 'Skipped');
-    installer.addLog('', 'warning');
-    installer.addLog('📦 Node.js v16 or higher is required to run Prompt Evaluator', 'warning');
-    installer.addLog('', 'info');
-    installer.addLog('Please install Node.js:', 'info');
-    installer.addLog('', 'info');
-    installer.addLog('1. Visit https://nodejs.org', 'info');
-    installer.addLog('2. Download the LTS (Long Term Support) version', 'info');
-    installer.addLog('3. Run the installer and follow the prompts', 'info');
+
+    if (PLATFORM === 'darwin') {
+      installer.addLog('🍎 For macOS:', 'info');
+      installer.addLog('', 'info');
+      installer.addLog('Option 1 - Using Homebrew (recommended):', 'info');
+      installer.addLog('  1. Install Homebrew if you don\'t have it:', 'info');
+      installer.addLog('     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"', 'info');
+      installer.addLog('  2. Then install Node.js:', 'info');
+      installer.addLog('     brew install node', 'info');
+      installer.addLog('', 'info');
+      installer.addLog('Option 2 - Direct download:', 'info');
+      installer.addLog('  Visit https://nodejs.org and download the LTS version', 'info');
+    } else if (PLATFORM === 'win32') {
+      installer.addLog('🪟 For Windows:', 'info');
+      installer.addLog('', 'info');
+      installer.addLog('Option 1 - Using winget (Windows 10 1709+ / Windows 11):', 'info');
+      installer.addLog('  winget install OpenJS.NodeJS', 'info');
+      installer.addLog('', 'info');
+      installer.addLog('Option 2 - Direct download:', 'info');
+      installer.addLog('  Visit https://nodejs.org and download the LTS version', 'info');
+    } else {
+      installer.addLog('🐧 For Linux:', 'info');
+      installer.addLog('', 'info');
+      installer.addLog('For Debian/Ubuntu:', 'info');
+      installer.addLog('  sudo apt-get update', 'info');
+      installer.addLog('  sudo apt-get install -y nodejs npm', 'info');
+      installer.addLog('', 'info');
+      installer.addLog('For other distributions, visit:', 'info');
+      installer.addLog('  https://nodejs.org/en/download/package-manager/', 'info');
+    }
+
     installer.addLog('', 'warning');
     installer.addLog('⚠️ After installing Node.js, please close and reopen Prompt Evaluator', 'warning');
     installer.addLog('', 'info');
-    installer.setComplete(false, 'Please install Node.js from https://nodejs.org, then reopen Prompt Evaluator');
 
-    return;
+    // Set current step to 0 since we failed at the first check
+    installer.updateProgress({ currentStep: 0 });
+    installer.setComplete(false, 'Please install Node.js, then reopen Prompt Evaluator');
+
+    return false; // No restart needed, user must install manually
   }
 
   installer.addLog(`✅ Node.js ${nodejs.version} detected`, 'success');
@@ -903,11 +1145,86 @@ async function runDependencyChecks(installer: InstallerWindow): Promise<void> {
     installer.updateStep('checking-promptfoo', 'error', 'Not installed');
     installer.updateStep('verifying-promptfoo-version', 'error', 'Skipped');
 
-    // Show installation instructions
+    // Show installation instructions and attempt automatic installation
     installer.addLog('', 'info');
     installer.addLog('📦 promptfoo 0.119.0 is required to run evaluations', 'info');
     installer.addLog('', 'info');
-    installer.addLog('Please install promptfoo using Terminal:', 'warning');
+    installer.addLog('Attempting automatic installation...', 'info');
+    installer.addLog('', 'info');
+
+    // Try automatic installation
+    installer.updateStep('installing-promptfoo', 'installing', 'Installing promptfoo...');
+    const installResult = await installPromptfooWithNpm(installer);
+
+    if (installResult.success) {
+      installer.addLog('', 'success');
+      installer.addLog('✅ promptfoo has been installed successfully!', 'success');
+      installer.addLog('', 'info');
+
+      // Verify the installation
+      installer.addLog('Verifying installation...', 'info');
+      const verifyResult = await checkPromptfooForInstaller(installer);
+
+      if (verifyResult.installed) {
+        installer.addLog(`✅ Verified: promptfoo ${verifyResult.version} is ready`, 'success');
+        installer.updateStep('checking-promptfoo', 'success', 'Installed successfully');
+        installer.updateStep('verifying-promptfoo-version', 'success', `Version ${verifyResult.version}`);
+
+        // Add helpful info about .env file location
+        installer.addLog('', 'info');
+        installer.addLog('💡 Optional: Configure API Keys', 'info');
+        installer.addLog('To use AI providers, create a .env file with your API keys:', 'info');
+
+        const userDataPath = app.getPath('userData');
+
+        // Create .env.example file if it doesn't exist
+        const envExamplePath = path.join(userDataPath, '.env.example');
+        if (!fs.existsSync(envExamplePath)) {
+          const exampleContent = `# API Keys for AI Providers
+# Copy this file to .env and add your actual API keys
+
+# OpenAI API Key (for GPT models)
+# Get yours at: https://platform.openai.com/api-keys
+OPENAI_API_KEY=sk-your-openai-key-here
+
+# Anthropic API Key (for Claude models)
+# Get yours at: https://console.anthropic.com/
+ANTHROPIC_API_KEY=sk-ant-your-anthropic-key-here
+
+# Google Gemini API Key
+# Get yours at: https://makersuite.google.com/app/apikey
+GEMINI_API_KEY=your-gemini-key-here
+`;
+          fs.writeFileSync(envExamplePath, exampleContent, 'utf-8');
+        }
+
+        if (PLATFORM === 'darwin') {
+          installer.addLog(`  Location: ${userDataPath}/.env`, 'info');
+          installer.addLog(`  Example template: ${userDataPath}/.env.example`, 'info');
+          installer.addLog(`  Or run: open "${userDataPath}"`, 'info');
+        } else if (PLATFORM === 'win32') {
+          installer.addLog(`  Location: ${userDataPath}\\.env`, 'info');
+          installer.addLog(`  Example template: ${userDataPath}\\.env.example`, 'info');
+          installer.addLog(`  Or run: explorer "${userDataPath}"`, 'info');
+        } else {
+          installer.addLog(`  Location: ${userDataPath}/.env`, 'info');
+          installer.addLog(`  Example template: ${userDataPath}/.env.example`, 'info');
+        }
+
+        installer.addLog('', 'info');
+        installer.addLog('Copy .env.example to .env and add your API keys', 'info');
+
+        installer.setComplete(true, 'All dependencies are ready! Click Continue to start.');
+        return false; // No restart needed, everything is ready
+      } else {
+        installer.addLog('⚠️ Installation completed but verification failed', 'warning');
+        installer.addLog('You may need to restart your terminal or computer', 'warning');
+      }
+    }
+
+    // If automatic installation failed, show manual instructions
+    installer.addLog('', 'warning');
+    installer.addLog('Automatic installation failed. Please install manually:', 'warning');
     installer.addLog('', 'info');
 
     // Platform-specific instructions
@@ -944,12 +1261,15 @@ async function runDependencyChecks(installer: InstallerWindow): Promise<void> {
     installer.addLog('⚠️ After installing promptfoo, please close and reopen Prompt Evaluator', 'warning');
     installer.addLog('', 'info');
 
+    // Set current step to 3 (we got past Node.js and npm checks)
+    installer.updateProgress({ currentStep: 3 });
     installer.setComplete(false, 'Please install promptfoo using Terminal, then reopen Prompt Evaluator');
-    return;
+    return false; // No restart needed, user must install manually
   } else {
     installer.addLog(`✓ promptfoo ${promptfoo.version} found`, 'success');
     installer.updateStep('checking-promptfoo', 'success', 'Found promptfoo');
     installer.updateStep('verifying-promptfoo-version', 'success', `Version ${promptfoo.version}`);
+    installer.updateStep('installing-promptfoo', 'success', 'Not needed');
     installer.addLog('All dependencies verified and ready!', 'success');
 
     // Add helpful info about .env file location
@@ -998,6 +1318,7 @@ GEMINI_API_KEY=your-gemini-key-here
     installer.addLog('Copy .env.example to .env and add your API keys', 'info');
 
     installer.setComplete(true, 'All dependencies are ready! Click Continue to start.');
+    return false; // No restart needed, everything is ready
   }
 }
 

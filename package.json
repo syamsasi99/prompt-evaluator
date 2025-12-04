@@ -95,6 +95,7 @@
       "dist/**/*",
       "dist-electron/**/*",
       "prompts/**/*",
+      "assets/**/*",
       "package.json"
     ],
     "directories": {
