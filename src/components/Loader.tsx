@@ -12,7 +12,7 @@ export function Loader() {
           clearInterval(progressInterval);
           return 95;
         }
-        return prev + Math.random() * 15;
+        return Math.min(prev + Math.random() * 15, 95);
       });
     }, 150);
 
